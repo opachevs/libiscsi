@@ -84,18 +84,18 @@ test_extendedcopy_descr_limits(void)
         data.size = init_xcopy_descr(xcopybuf, XCOPY_DESC_OFFSET,
                         (opp->max_target_desc_count+1), 1,
                         &tgt_desc_len, &seg_desc_len);
-        populate_param_header(xcopybuf, 1, 0, 0, 0,
-                        tgt_desc_len, seg_desc_len, 0);
+        populate_param_header(xcopybuf, 0, 0, LIST_ID_USAGE_DISABLE, 1,
+                					tgt_desc_len, seg_desc_len, 0);
         EXTENDEDCOPY(sd, &data, EXPECT_TOO_MANY_DESCR);
 
         logging(LOG_VERBOSE,
                         "Test sending more than supported segment descriptors");
         memset(xcopybuf, 0, alloc_len);
-        data.size = init_xcopy_descr(xcopybuf, XCOPY_DESC_OFFSET, 1,
+        data.size = init_xcopy_descr(xcopybuf, XCOPY_DESC_OFFSET, 2,
                         (opp->max_segment_desc_count+1),
                         &tgt_desc_len, &seg_desc_len);
-        populate_param_header(xcopybuf, 2, 0, 0, 0,
-                        tgt_desc_len, seg_desc_len, 0);
+        populate_param_header(xcopybuf, 0, 0, LIST_ID_USAGE_DISABLE, 1,
+        					tgt_desc_len, seg_desc_len, 0);
         EXTENDEDCOPY(sd, &data, EXPECT_TOO_MANY_DESCR);
 
         logging(LOG_VERBOSE,
@@ -106,8 +106,8 @@ test_extendedcopy_descr_limits(void)
                                 (opp->max_target_desc_count+1),
                                 (opp->max_segment_desc_count+1),
                                 &tgt_desc_len, &seg_desc_len);
-                populate_param_header(xcopybuf, 3, 0, 0, 0,
-                                tgt_desc_len, seg_desc_len, 0);
+                populate_param_header(xcopybuf, 0, 0, LIST_ID_USAGE_DISABLE, 1,
+                					tgt_desc_len, seg_desc_len, 0);
                 EXTENDEDCOPY(sd, &data, EXPECT_PARAM_LIST_LEN_ERR);
         }
 
