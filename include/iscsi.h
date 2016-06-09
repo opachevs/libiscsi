@@ -30,15 +30,18 @@
 extern "C" {
 #endif
 
+
 struct iscsi_context;
 struct sockaddr;
+struct scsi_iovec;
 
 /* API VERSION */
-#define LIBISCSI_API_VERSION (20160501)
+#define LIBISCSI_API_VERSION (20160603)
 
 /* FEATURES */
 #define LIBISCSI_FEATURE_IOVECTOR (1)
 #define LIBISCSI_FEATURE_NOP_COUNTER (1)
+#define LIBISCSI_FEATURE_ISER (1)
 
 #define MAX_STRING_SIZE (255)
 
@@ -50,6 +53,10 @@ struct sockaddr;
 #define ISCSI_PORTAL_URL_SYNTAX "\"iscsi://[<username>[%<password>]@]" \
   "<host>[:<port>]\""
 
+enum iscsi_transport_type {
+	TCP_TRANSPORT = 0,
+	ISER_TRANSPORT = 1
+};
 
 EXTERN void iscsi_set_cache_allocations(struct iscsi_context *iscsi, int ca);
 
@@ -145,6 +152,7 @@ struct iscsi_url {
        char target_passwd[MAX_STRING_SIZE + 1];
        int lun;
        struct iscsi_context *iscsi;
+       enum iscsi_transport_type transport;
 };
 
 /*
@@ -245,6 +253,18 @@ EXTERN struct iscsi_context *iscsi_create_context(const char *initiator_name);
 EXTERN int iscsi_destroy_context(struct iscsi_context *iscsi);
 
 /*
+ * Sets and initializes the transport type for a context.
+ * TCP_TRANSPORT is the default and is available on all platforms.
+ * ISER_TRANSPORT is conditionally supported on Linux where available.
+ *
+ * Returns:
+ *  0: success
+ * <0: error
+ */
+EXTERN int iscsi_init_transport(struct iscsi_context *iscsi,
+                                enum iscsi_transport_type transport);
+
+/*
  * Set an optional alias name to identify with when connecting to the target
  *
  * Returns:
@@ -252,6 +272,7 @@ EXTERN int iscsi_destroy_context(struct iscsi_context *iscsi);
  * <0: error
  */
 EXTERN int iscsi_set_alias(struct iscsi_context *iscsi, const char *alias);
+
 
 /*
  * Set the iqn name of the taqget to login to.
@@ -823,57 +844,111 @@ EXTERN struct scsi_task *
 iscsi_read6_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		       uint32_t datalen, int blocksize, iscsi_command_cb cb,
 		       void *private_data);
-
+EXTERN struct scsi_task *
+iscsi_read6_iov_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		       uint32_t datalen, int blocksize, iscsi_command_cb cb,
+		       void *private_data, struct scsi_iovec *iov, int niov);
 EXTERN struct scsi_task *
 iscsi_read10_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		  uint32_t datalen, int blocksize,
 		  int rdprotect, int dpo, int fua, int fua_nv, int group_number,
 		  iscsi_command_cb cb, void *private_data);
 EXTERN struct scsi_task *
+iscsi_read10_iov_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		  uint32_t datalen, int blocksize,
+		  int rdprotect, int dpo, int fua, int fua_nv, int group_number,
+		  iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
+EXTERN struct scsi_task *
 iscsi_write10_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number,
 		   iscsi_command_cb cb, void *private_data);
+EXTERN struct scsi_task *
+iscsi_write10_iov_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		   unsigned char *data, uint32_t datalen, int blocksize,
+		   int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		   iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
 EXTERN struct scsi_task *
 iscsi_writeverify10_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int bytchk, int group_number,
 		   iscsi_command_cb cb, void *private_data);
 EXTERN struct scsi_task *
+iscsi_writeverify10_iov_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		   unsigned char *data, uint32_t datalen, int blocksize,
+		   int wrprotect, int dpo, int bytchk, int group_number,
+		   iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
+EXTERN struct scsi_task *
 iscsi_read12_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   uint32_t datalen, int blocksize,
 		   int rdprotect, int dpo, int fua, int fua_nv, int group_number,
 		   iscsi_command_cb cb, void *private_data);
+EXTERN struct scsi_task *
+iscsi_read12_iov_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		   uint32_t datalen, int blocksize,
+		   int rdprotect, int dpo, int fua, int fua_nv, int group_number,
+		   iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
 EXTERN struct scsi_task *
 iscsi_write12_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number,
 		   iscsi_command_cb cb, void *private_data);
 EXTERN struct scsi_task *
+iscsi_write12_iov_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		   unsigned char *data, uint32_t datalen, int blocksize,
+		   int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		   iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
+EXTERN struct scsi_task *
 iscsi_writeverify12_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int bytchk, int group_number,
 		   iscsi_command_cb cb, void *private_data);
+EXTERN struct scsi_task *
+iscsi_writeverify12_iov_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		   unsigned char *data, uint32_t datalen, int blocksize,
+		   int wrprotect, int dpo, int bytchk, int group_number,
+		   iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
 EXTERN struct scsi_task *
 iscsi_read16_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   uint32_t datalen, int blocksize,
 		   int rdprotect, int dpo, int fua, int fua_nv, int group_number,
 		   iscsi_command_cb cb, void *private_data);
 EXTERN struct scsi_task *
+iscsi_read16_iov_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
+		   uint32_t datalen, int blocksize,
+		   int rdprotect, int dpo, int fua, int fua_nv, int group_number,
+		   iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
+EXTERN struct scsi_task *
 iscsi_write16_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number,
 		   iscsi_command_cb cb, void *private_data);
+EXTERN struct scsi_task *
+iscsi_write16_iov_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
+		   unsigned char *data, uint32_t datalen, int blocksize,
+		   int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		   iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
 EXTERN struct scsi_task *
 iscsi_writeatomic16_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
 			 unsigned char *data, uint32_t datalen, int blocksize,
 			 int wrprotect, int dpo, int fua, int group_number,
 		   iscsi_command_cb cb, void *private_data);
 EXTERN struct scsi_task *
+iscsi_writeatomic16_iov_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			     unsigned char *data, uint32_t datalen, int blocksize,
+			     int wrprotect, int dpo, int fua, int group_number,
+			     iscsi_command_cb cb, void *private_data,
+			     struct scsi_iovec *iov, int niov);
+EXTERN struct scsi_task *
 iscsi_orwrite_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number,
 		   iscsi_command_cb cb, void *private_data);
+EXTERN struct scsi_task *
+iscsi_orwrite_iov_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
+		       unsigned char *data, uint32_t datalen, int blocksize,
+		       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		       iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
 EXTERN struct scsi_task *
 iscsi_startstopunit_task(struct iscsi_context *iscsi, int lun,
 			 int immed, int pcm, int pc,
@@ -889,10 +964,20 @@ iscsi_compareandwrite_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number,
 		   iscsi_command_cb cb, void *private_data);
 EXTERN struct scsi_task *
+iscsi_compareandwrite_iov_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			       unsigned char *data, uint32_t datalen, int blocksize,
+			       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+			       iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
+EXTERN struct scsi_task *
 iscsi_writeverify16_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int bytchk, int group_number,
 		   iscsi_command_cb cb, void *private_data);
+EXTERN struct scsi_task *
+iscsi_writeverify16_iov_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
+		   unsigned char *data, uint32_t datalen, int blocksize,
+		   int wrprotect, int dpo, int bytchk, int group_number,
+		   iscsi_command_cb cb, void *private_data, struct scsi_iovec *iov, int niov);
 EXTERN struct scsi_task *
 iscsi_verify10_task(struct iscsi_context *iscsi, int lun,
 		    unsigned char *data, uint32_t datalen, uint32_t lba,
@@ -900,11 +985,23 @@ iscsi_verify10_task(struct iscsi_context *iscsi, int lun,
 		    int blocksize, iscsi_command_cb cb,
 		    void *private_data);
 EXTERN struct scsi_task *
+iscsi_verify10_iov_task(struct iscsi_context *iscsi, int lun,
+			unsigned char *data, uint32_t datalen, uint32_t lba,
+			int vprotect, int dpo, int bytchk,
+			int blocksize, iscsi_command_cb cb,
+			void *private_data, struct scsi_iovec *iov, int niov);
+EXTERN struct scsi_task *
 iscsi_verify12_task(struct iscsi_context *iscsi, int lun,
 		    unsigned char *data, uint32_t datalen, uint32_t lba,
 		    int vprotect, int dpo, int bytchk,
 		    int blocksize, iscsi_command_cb cb,
 		    void *private_data);
+EXTERN struct scsi_task *
+iscsi_verify12_iov_task(struct iscsi_context *iscsi, int lun,
+			unsigned char *data, uint32_t datalen, uint32_t lba,
+			int vprotect, int dpo, int bytchk,
+			int blocksize, iscsi_command_cb cb,
+			void *private_data, struct scsi_iovec *iov, int niov);
 EXTERN struct scsi_task *
 iscsi_verify16_task(struct iscsi_context *iscsi, int lun,
 		    unsigned char *data, uint32_t datalen, uint64_t lba,
@@ -912,17 +1009,37 @@ iscsi_verify16_task(struct iscsi_context *iscsi, int lun,
 		    int blocksize, iscsi_command_cb cb,
 		    void *private_data);
 EXTERN struct scsi_task *
+iscsi_verify16_iov_task(struct iscsi_context *iscsi, int lun,
+			unsigned char *data, uint32_t datalen, uint64_t lba,
+			int vprotect, int dpo, int bytchk,
+			int blocksize, iscsi_command_cb cb,
+			void *private_data, struct scsi_iovec *iov, int niov);
+EXTERN struct scsi_task *
 iscsi_writesame10_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		       unsigned char *data, uint32_t datalen,
 		       uint16_t num_blocks,
 		       int anchor, int unmap, int wrprotect, int group,
 		       iscsi_command_cb cb, void *private_data);
 EXTERN struct scsi_task *
+iscsi_writesame10_iov_task(struct iscsi_context *iscsi, int lun, uint32_t lba,
+			   unsigned char *data, uint32_t datalen,
+			   uint16_t num_blocks,
+			   int anchor, int unmap, int wrprotect, int group,
+			   iscsi_command_cb cb, void *private_data,
+			   struct scsi_iovec *iov, int niov);
+EXTERN struct scsi_task *
 iscsi_writesame16_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		       unsigned char *data, uint32_t datalen,
 		       uint32_t num_blocks,
 		       int anchor, int unmap, int wrprotect, int group,
 		       iscsi_command_cb cb, void *private_data);
+EXTERN struct scsi_task *
+iscsi_writesame16_iov_task(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			   unsigned char *data, uint32_t datalen,
+			   uint32_t num_blocks,
+			   int anchor, int unmap, int wrprotect, int group,
+			   iscsi_command_cb cb, void *private_data,
+			   struct scsi_iovec *iov, int niov);
 EXTERN struct scsi_task *
 iscsi_modeselect6_task(struct iscsi_context *iscsi, int lun,
 		       int pf, int sp, struct scsi_mode_page *mp,
@@ -1023,9 +1140,20 @@ iscsi_read6_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		  uint32_t datalen, int blocksize);
 
 EXTERN struct scsi_task *
+iscsi_read6_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		     uint32_t datalen, int blocksize,
+		     struct scsi_iovec *iov, int niov);
+
+EXTERN struct scsi_task *
 iscsi_read10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		  uint32_t datalen, int blocksize,
 		  int rdprotect, int dpo, int fua, int fua_nv, int group_number);
+
+EXTERN struct scsi_task *
+iscsi_read10_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		      uint32_t datalen, int blocksize,
+		      int rdprotect, int dpo, int fua, int fua_nv, int group_number,
+		      struct scsi_iovec *iov, int niov);
 
 EXTERN struct scsi_task *
 iscsi_write10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
@@ -1033,9 +1161,20 @@ iscsi_write10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number);
 
 EXTERN struct scsi_task *
+iscsi_write10_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+			unsigned char *data, uint32_t datalen, int blocksize,
+			int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+			struct scsi_iovec *iov, int niov);
+EXTERN struct scsi_task *
 iscsi_writeverify10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int bytchk, int group_number);
+
+EXTERN struct scsi_task *
+iscsi_writeverify10_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+			     unsigned char *data, uint32_t datalen, int blocksize,
+			     int wrprotect, int dpo, int bytchk, int group_number,
+			     struct scsi_iovec *iov, int niov);
 
 EXTERN struct scsi_task *
 iscsi_read12_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
@@ -1043,9 +1182,21 @@ iscsi_read12_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		  int rdprotect, int dpo, int fua, int fua_nv, int group_number);
 
 EXTERN struct scsi_task *
+iscsi_read12_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		      uint32_t datalen, int blocksize,
+		      int rdprotect, int dpo, int fua, int fua_nv, int group_number,
+		      struct scsi_iovec *iov, int niov);
+
+EXTERN struct scsi_task *
 iscsi_write12_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number);
+
+EXTERN struct scsi_task *
+iscsi_write12_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		       unsigned char *data, uint32_t datalen, int blocksize,
+		       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		       struct scsi_iovec *iov, int niov);
 
 EXTERN struct scsi_task *
 iscsi_writeverify12_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
@@ -1053,9 +1204,21 @@ iscsi_writeverify12_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   int wrprotect, int dpo, int bytchk, int group_number);
 
 EXTERN struct scsi_task *
+iscsi_writeverify12_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+			     unsigned char *data, uint32_t datalen, int blocksize,
+			     int wrprotect, int dpo, int bytchk, int group_number,
+			     struct scsi_iovec *iov, int niov);
+
+EXTERN struct scsi_task *
 iscsi_read16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		  uint32_t datalen, int blocksize,
 		  int rdprotect, int dpo, int fua, int fua_nv, int group_number);
+
+EXTERN struct scsi_task *
+iscsi_read16_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+		      uint32_t datalen, int blocksize,
+		      int rdprotect, int dpo, int fua, int fua_nv, int group_number,
+		      struct scsi_iovec *iov, int niov);
 
 EXTERN struct scsi_task *
 iscsi_write16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
@@ -1063,14 +1226,32 @@ iscsi_write16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number);
 
 EXTERN struct scsi_task *
+iscsi_write16_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+		       unsigned char *data, uint32_t datalen, int blocksize,
+		       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		       struct scsi_iovec *iov, int niov);
+
+EXTERN struct scsi_task *
 iscsi_writeatomic16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 			 unsigned char *data, uint32_t datalen, int blocksize,
 			 int wrprotect, int dpo, int fua, int group_number);
 
 EXTERN struct scsi_task *
+iscsi_writeatomic16_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			     unsigned char *data, uint32_t datalen, int blocksize,
+			     int wrprotect, int dpo, int fua, int group_number,
+			     struct scsi_iovec *iov, int niov);
+
+EXTERN struct scsi_task *
 iscsi_orwrite_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number);
+
+EXTERN struct scsi_task *
+iscsi_orwrite_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+		       unsigned char *data, uint32_t datalen, int blocksize,
+		       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		       struct scsi_iovec *iov, int niov);
 
 EXTERN struct scsi_task *
 iscsi_startstopunit_sync(struct iscsi_context *iscsi, int lun,
@@ -1087,9 +1268,21 @@ iscsi_compareandwrite_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number);
 
 EXTERN struct scsi_task *
+iscsi_compareandwrite_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			       unsigned char *data, uint32_t datalen, int blocksize,
+			       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+			       struct scsi_iovec *iov, int niov);
+
+EXTERN struct scsi_task *
 iscsi_writeverify16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int bytchk, int group_number);
+
+EXTERN struct scsi_task *
+iscsi_writeverify16_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			     unsigned char *data, uint32_t datalen, int blocksize,
+			     int wrprotect, int dpo, int bytchk, int group_number,
+			     struct scsi_iovec *iov, int niov);
 
 EXTERN struct scsi_task *
 iscsi_readcapacity10_sync(struct iscsi_context *iscsi, int lun, int lba,
@@ -1137,10 +1330,22 @@ iscsi_verify10_sync(struct iscsi_context *iscsi, int lun,
 		    int blocksize);
 
 EXTERN struct scsi_task *
+iscsi_verify10_iov_sync(struct iscsi_context *iscsi, int lun,
+			unsigned char *data, uint32_t datalen, uint32_t lba,
+			int vprotect, int dpo, int bytchk,
+			int blocksize, struct scsi_iovec *iov, int niov);
+
+EXTERN struct scsi_task *
 iscsi_verify12_sync(struct iscsi_context *iscsi, int lun,
 		    unsigned char *data, uint32_t datalen, uint32_t lba,
 		    int vprotect, int dpo, int bytchk,
 		    int blocksize);
+
+EXTERN struct scsi_task *
+iscsi_verify12_iov_sync(struct iscsi_context *iscsi, int lun,
+			unsigned char *data, uint32_t datalen, uint32_t lba,
+			int vprotect, int dpo, int bytchk,
+			int blocksize, struct scsi_iovec *iov, int niov);
 
 EXTERN struct scsi_task *
 iscsi_verify16_sync(struct iscsi_context *iscsi, int lun,
@@ -1149,16 +1354,36 @@ iscsi_verify16_sync(struct iscsi_context *iscsi, int lun,
 		    int blocksize);
 
 EXTERN struct scsi_task *
+iscsi_verify16_iov_sync(struct iscsi_context *iscsi, int lun,
+			unsigned char *data, uint32_t datalen, uint64_t lba,
+			int vprotect, int dpo, int bytchk,
+			int blocksize, struct scsi_iovec *iov, int niov);
+
+EXTERN struct scsi_task *
 iscsi_writesame10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		       unsigned char *data, uint32_t datalen,
 		       uint16_t num_blocks,
 		       int anchor, int unmap, int wrprotect, int group);
 
 EXTERN struct scsi_task *
+iscsi_writesame10_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+			   unsigned char *data, uint32_t datalen,
+			   uint16_t num_blocks,
+			   int anchor, int unmap, int wrprotect, int group,
+			   struct scsi_iovec *iov, int niov);
+
+EXTERN struct scsi_task *
 iscsi_writesame16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		       unsigned char *data, uint32_t datalen,
 		       uint32_t num_blocks,
 		       int anchor, int unmap, int wrprotect, int group);
+
+EXTERN struct scsi_task *
+iscsi_writesame16_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			   unsigned char *data, uint32_t datalen,
+			   uint32_t num_blocks,
+			   int anchor, int unmap, int wrprotect, int group,
+			   struct scsi_iovec *iov, int niov);
 
 EXTERN struct scsi_task *
 iscsi_persistent_reserve_in_sync(struct iscsi_context *iscsi, int lun,

@@ -40,6 +40,9 @@ extern "C" {
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #define ISCSI_RAW_HEADER_SIZE			48
 #define ISCSI_DIGEST_SIZE			 4
 
@@ -52,7 +55,7 @@ struct iscsi_in_pdu {
 	struct iscsi_in_pdu *next;
 
 	long long hdr_pos;
-	unsigned char hdr[ISCSI_RAW_HEADER_SIZE + ISCSI_DIGEST_SIZE];
+	unsigned char *hdr;
 
 	long long data_pos;
 	unsigned char *data;
@@ -66,7 +69,16 @@ void iscsi_free_iscsi_inqueue(struct iscsi_context *iscsi, struct iscsi_in_pdu *
 /* max length of chap challange */
 #define MAX_CHAP_C_LENGTH 2048
 
+union socket_address {
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+	struct sockaddr sa;
+};
+
 struct iscsi_context {
+
+	struct iscsi_transport *t;
+	enum iscsi_transport_type transport;
 	char initiator_name[MAX_STRING_SIZE+1];
 	char target_name[MAX_STRING_SIZE+1];
 	char target_address[MAX_STRING_SIZE+1];  /* If a redirect */
@@ -283,7 +295,6 @@ void iscsi_pdu_set_datasn(struct iscsi_pdu *pdu, uint32_t datasn);
 void iscsi_pdu_set_bufferoffset(struct iscsi_pdu *pdu, uint32_t bufferoffset);
 int iscsi_pdu_add_data(struct iscsi_context *iscsi, struct iscsi_pdu *pdu,
 		       unsigned char *dptr, int dsize);
-int iscsi_queue_pdu(struct iscsi_context *iscsi, struct iscsi_pdu *pdu);
 
 int iscsi_add_data(struct iscsi_context *iscsi, struct iscsi_data *data,
 		   unsigned char *dptr, int dsize, int pdualignment);
@@ -371,6 +382,29 @@ void iscsi_timeout_scan(struct iscsi_context *iscsi);
 
 void iscsi_reconnect_cb(struct iscsi_context *iscsi _U_, int status,
                         void *command_data, void *private_data);
+
+struct iscsi_pdu *iscsi_tcp_new_pdu(struct iscsi_context *iscsi, size_t size);
+
+void iscsi_init_tcp_transport(struct iscsi_context *iscsi);
+
+void iscsi_tcp_free_pdu(struct iscsi_context *iscsi, struct iscsi_pdu *pdu);
+
+int iscsi_service_reconnect_if_loggedin(struct iscsi_context *iscsi);
+
+struct iscsi_transport {
+	int (*connect)(struct iscsi_context *iscsi, union socket_address *sa, int ai_family);
+	int (*queue_pdu)(struct iscsi_context *iscsi, struct iscsi_pdu *pdu);
+	struct iscsi_pdu* (*new_pdu)(struct iscsi_context *iscsi, size_t size);
+	int (*disconnect)(struct iscsi_context *iscsi);
+	void (*free_pdu)(struct iscsi_context *iscsi, struct iscsi_pdu *pdu);
+	int (*service)(struct iscsi_context *iscsi, int revents);
+	int (*get_fd)(struct iscsi_context *iscsi);
+	int (*which_events)(struct iscsi_context *iscsi);
+};
+
+struct tcp_transport {
+	struct iscsi_transport t;
+};
 
 #ifdef __cplusplus
 }

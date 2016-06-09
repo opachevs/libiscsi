@@ -79,6 +79,16 @@ void iscsi_dump_pdu_header(struct iscsi_context *iscsi, unsigned char *data) {
 	ISCSI_LOG(iscsi, 2, "PDU header:%s", dump);
 }
 
+struct iscsi_pdu*
+iscsi_tcp_new_pdu(struct iscsi_context *iscsi, size_t size)
+{
+	struct iscsi_pdu *pdu;
+
+	pdu = iscsi_szmalloc(iscsi, size);
+
+	return pdu;
+}
+
 struct iscsi_pdu *
 iscsi_allocate_pdu(struct iscsi_context *iscsi, enum iscsi_opcode opcode,
 		   enum iscsi_opcode response_opcode, uint32_t itt,
@@ -86,7 +96,7 @@ iscsi_allocate_pdu(struct iscsi_context *iscsi, enum iscsi_opcode opcode,
 {
 	struct iscsi_pdu *pdu;
 
-	pdu = iscsi_szmalloc(iscsi, sizeof(struct iscsi_pdu));
+	pdu = iscsi->t->new_pdu(iscsi, sizeof(struct iscsi_pdu));
 	if (pdu == NULL) {
 		iscsi_set_error(iscsi, "failed to allocate pdu");
 		return NULL;
@@ -121,7 +131,7 @@ iscsi_allocate_pdu(struct iscsi_context *iscsi, enum iscsi_opcode opcode,
 }
 
 void
-iscsi_free_pdu(struct iscsi_context *iscsi, struct iscsi_pdu *pdu)
+iscsi_tcp_free_pdu(struct iscsi_context *iscsi, struct iscsi_pdu *pdu)
 {
 	if (pdu == NULL) {
 		iscsi_set_error(iscsi, "trying to free NULL pdu");
@@ -369,7 +379,7 @@ int iscsi_process_reject(struct iscsi_context *iscsi,
 	}
 
 	ISCSI_LIST_REMOVE(&iscsi->waitpdu, pdu);
-	iscsi_free_pdu(iscsi, pdu);
+	iscsi->t->free_pdu(iscsi, pdu);
 	return 0;
 }
 
@@ -518,7 +528,7 @@ iscsi_process_pdu(struct iscsi_context *iscsi, struct iscsi_in_pdu *in)
 		case ISCSI_PDU_LOGIN_RESPONSE:
 			if (iscsi_process_login_reply(iscsi, pdu, in) != 0) {
 				ISCSI_LIST_REMOVE(&iscsi->waitpdu, pdu);
-				iscsi_free_pdu(iscsi, pdu);
+				iscsi->t->free_pdu(iscsi, pdu);
 				iscsi_set_error(iscsi, "iscsi login reply "
 						"failed");
 				return -1;
@@ -527,7 +537,7 @@ iscsi_process_pdu(struct iscsi_context *iscsi, struct iscsi_in_pdu *in)
 		case ISCSI_PDU_TEXT_RESPONSE:
 			if (iscsi_process_text_reply(iscsi, pdu, in) != 0) {
 				ISCSI_LIST_REMOVE(&iscsi->waitpdu, pdu);
-				iscsi_free_pdu(iscsi, pdu);
+				iscsi->t->free_pdu(iscsi, pdu);
 				iscsi_set_error(iscsi, "iscsi text reply "
 						"failed");
 				return -1;
@@ -536,7 +546,7 @@ iscsi_process_pdu(struct iscsi_context *iscsi, struct iscsi_in_pdu *in)
 		case ISCSI_PDU_LOGOUT_RESPONSE:
 			if (iscsi_process_logout_reply(iscsi, pdu, in) != 0) {
 				ISCSI_LIST_REMOVE(&iscsi->waitpdu, pdu);
-				iscsi_free_pdu(iscsi, pdu);
+				iscsi->t->free_pdu(iscsi, pdu);
 				iscsi_set_error(iscsi, "iscsi logout reply "
 						"failed");
 				return -1;
@@ -545,7 +555,7 @@ iscsi_process_pdu(struct iscsi_context *iscsi, struct iscsi_in_pdu *in)
 		case ISCSI_PDU_SCSI_RESPONSE:
 			if (iscsi_process_scsi_reply(iscsi, pdu, in) != 0) {
 				ISCSI_LIST_REMOVE(&iscsi->waitpdu, pdu);
-				iscsi_free_pdu(iscsi, pdu);
+				iscsi->t->free_pdu(iscsi, pdu);
 				iscsi_set_error(iscsi, "iscsi response reply "
 						"failed");
 				return -1;
@@ -555,7 +565,7 @@ iscsi_process_pdu(struct iscsi_context *iscsi, struct iscsi_in_pdu *in)
 			if (iscsi_process_scsi_data_in(iscsi, pdu, in,
 						       &is_finished) != 0) {
 				ISCSI_LIST_REMOVE(&iscsi->waitpdu, pdu);
-				iscsi_free_pdu(iscsi, pdu);
+				iscsi->t->free_pdu(iscsi, pdu);
 				iscsi_set_error(iscsi, "iscsi data in "
 						"failed");
 				return -1;
@@ -564,7 +574,7 @@ iscsi_process_pdu(struct iscsi_context *iscsi, struct iscsi_in_pdu *in)
 		case ISCSI_PDU_NOP_IN:
 			if (iscsi_process_nop_out_reply(iscsi, pdu, in) != 0) {
 				ISCSI_LIST_REMOVE(&iscsi->waitpdu, pdu);
-				iscsi_free_pdu(iscsi, pdu);
+				iscsi->t->free_pdu(iscsi, pdu);
 				iscsi_set_error(iscsi, "iscsi nop-in failed");
 				return -1;
 			}
@@ -573,7 +583,7 @@ iscsi_process_pdu(struct iscsi_context *iscsi, struct iscsi_in_pdu *in)
 			if (iscsi_process_task_mgmt_reply(iscsi, pdu,
 							  in) != 0) {
 				ISCSI_LIST_REMOVE(&iscsi->waitpdu, pdu);
-				iscsi_free_pdu(iscsi, pdu);
+				iscsi->t->free_pdu(iscsi, pdu);
 				iscsi_set_error(iscsi, "iscsi task-mgmt failed");
 				return -1;
 			}
@@ -581,7 +591,7 @@ iscsi_process_pdu(struct iscsi_context *iscsi, struct iscsi_in_pdu *in)
 		case ISCSI_PDU_R2T:
 			if (iscsi_process_r2t(iscsi, pdu, in) != 0) {
 				ISCSI_LIST_REMOVE(&iscsi->waitpdu, pdu);
-				iscsi_free_pdu(iscsi, pdu);
+				iscsi->t->free_pdu(iscsi, pdu);
 				iscsi_set_error(iscsi, "iscsi r2t "
 						"failed");
 				return -1;
@@ -596,7 +606,7 @@ iscsi_process_pdu(struct iscsi_context *iscsi, struct iscsi_in_pdu *in)
 
 		if (is_finished) {
 			ISCSI_LIST_REMOVE(&iscsi->waitpdu, pdu);
-			iscsi_free_pdu(iscsi, pdu);
+			iscsi->t->free_pdu(iscsi, pdu);
 		}
 		return 0;
 	}
@@ -710,7 +720,7 @@ iscsi_timeout_scan(struct iscsi_context *iscsi)
 			pdu->callback(iscsi, SCSI_STATUS_TIMEOUT,
 			              NULL, pdu->private_data);
 		}
-		iscsi_free_pdu(iscsi, pdu);
+		iscsi->t->free_pdu(iscsi, pdu);
 	}
 	for (pdu = iscsi->waitpdu; pdu; pdu = next_pdu) {
 		next_pdu = pdu->next;
@@ -730,6 +740,6 @@ iscsi_timeout_scan(struct iscsi_context *iscsi)
 			pdu->callback(iscsi, SCSI_STATUS_TIMEOUT,
 			              NULL, pdu->private_data);
 		}
-		iscsi_free_pdu(iscsi, pdu);
+		iscsi->t->free_pdu(iscsi, pdu);
 	}
 }

@@ -421,6 +421,26 @@ iscsi_read6_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 }
 
 struct scsi_task *
+iscsi_read6_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		     uint32_t datalen, int blocksize, struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_read6_iov_task(iscsi, lun, lba, datalen, blocksize,
+				 scsi_sync_cb, &state, iov, niov) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Read6 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
 iscsi_read10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		  uint32_t datalen, int blocksize,
 		  int rdprotect, int dpo, int fua, int fua_nv, int group_number)
@@ -432,6 +452,29 @@ iscsi_read10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 	if (iscsi_read10_task(iscsi, lun, lba, datalen, blocksize, rdprotect, 
 			      dpo, fua, fua_nv, group_number,
 			      scsi_sync_cb, &state) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Read10 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
+iscsi_read10_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		      uint32_t datalen, int blocksize,
+		      int rdprotect, int dpo, int fua, int fua_nv, int group_number,
+		      struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_read10_iov_task(iscsi, lun, lba, datalen, blocksize, rdprotect,
+				  dpo, fua, fua_nv, group_number,
+				  scsi_sync_cb, &state, iov, niov) == NULL) {
 		iscsi_set_error(iscsi,
 				"Failed to send Read10 command");
 		return NULL;
@@ -465,6 +508,29 @@ iscsi_read12_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 }
 
 struct scsi_task *
+iscsi_read12_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		      uint32_t datalen, int blocksize,
+		      int rdprotect, int dpo, int fua, int fua_nv, int group_number,
+		      struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_read12_iov_task(iscsi, lun, lba, datalen, blocksize, rdprotect,
+				  dpo, fua, fua_nv, group_number,
+				  scsi_sync_cb, &state, iov, niov) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Read12 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
 iscsi_read16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		  uint32_t datalen, int blocksize,
 		  int rdprotect, int dpo, int fua, int fua_nv, int group_number)
@@ -476,6 +542,29 @@ iscsi_read16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 	if (iscsi_read16_task(iscsi, lun, lba, datalen, blocksize, rdprotect, 
 			      dpo, fua, fua_nv, group_number,
 			      scsi_sync_cb, &state) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Read16 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
+iscsi_read16_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+		      uint32_t datalen, int blocksize,
+		      int rdprotect, int dpo, int fua, int fua_nv, int group_number,
+		      struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_read16_iov_task(iscsi, lun, lba, datalen, blocksize, rdprotect,
+				  dpo, fua, fua_nv, group_number,
+				  scsi_sync_cb, &state, iov, niov) == NULL) {
 		iscsi_set_error(iscsi,
 				"Failed to send Read16 command");
 		return NULL;
@@ -778,6 +867,29 @@ iscsi_write10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 }
 
 struct scsi_task *
+iscsi_write10_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		       unsigned char *data, uint32_t datalen, int blocksize,
+		       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		       struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_write10_iov_task(iscsi, lun, lba, data, datalen, blocksize,
+				   wrprotect, dpo, fua, fua_nv, group_number,
+				   scsi_sync_cb, &state, iov, niov) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Write10 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
 iscsi_write12_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number)
@@ -790,6 +902,30 @@ iscsi_write12_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 			       data, datalen, blocksize, wrprotect, 
 			       dpo, fua, fua_nv, group_number,
 			       scsi_sync_cb, &state) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Write12 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
+iscsi_write12_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+		       unsigned char *data, uint32_t datalen, int blocksize,
+		       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		       struct scsi_iovec *iov,int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_write12_iov_task(iscsi, lun, lba,
+				   data, datalen, blocksize, wrprotect,
+				   dpo, fua, fua_nv, group_number,
+				   scsi_sync_cb, &state, iov, niov) == NULL) {
 		iscsi_set_error(iscsi,
 				"Failed to send Write12 command");
 		return NULL;
@@ -824,6 +960,30 @@ iscsi_write16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 }
 
 struct scsi_task *
+iscsi_write16_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+		       unsigned char *data, uint32_t datalen, int blocksize,
+		       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		       struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_write16_iov_task(iscsi, lun, lba,
+				   data, datalen, blocksize, wrprotect,
+				   dpo, fua, fua_nv, group_number,
+				   scsi_sync_cb, &state, iov, niov) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Write16 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
 iscsi_writeatomic16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 			 unsigned char *data, uint32_t datalen, int blocksize,
 			 int wrprotect, int dpo, int fua, int group_number)
@@ -836,6 +996,30 @@ iscsi_writeatomic16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 				     data, datalen, blocksize, wrprotect,
 				     dpo, fua, group_number,
 				     scsi_sync_cb, &state) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send WriteAtomic16 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
+iscsi_writeatomic16_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			     unsigned char *data, uint32_t datalen, int blocksize,
+			     int wrprotect, int dpo, int fua, int group_number,
+			     struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_writeatomic16_iov_task(iscsi, lun, lba,
+					 data, datalen, blocksize, wrprotect,
+					 dpo, fua, group_number,
+					 scsi_sync_cb, &state, iov, niov) == NULL) {
 		iscsi_set_error(iscsi,
 				"Failed to send WriteAtomic16 command");
 		return NULL;
@@ -870,6 +1054,30 @@ iscsi_orwrite_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 }
 
 struct scsi_task *
+iscsi_orwrite_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+		       unsigned char *data, uint32_t datalen, int blocksize,
+		       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+		       struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_orwrite_iov_task(iscsi, lun, lba,
+				   data, datalen, blocksize, wrprotect,
+				   dpo, fua, fua_nv, group_number,
+				   scsi_sync_cb, &state, iov, niov) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Orwrite command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
 iscsi_compareandwrite_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int fua, int fua_nv, int group_number)
@@ -893,6 +1101,30 @@ iscsi_compareandwrite_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 }
 
 struct scsi_task *
+iscsi_compareandwrite_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			       unsigned char *data, uint32_t datalen, int blocksize,
+			       int wrprotect, int dpo, int fua, int fua_nv, int group_number,
+			       struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_compareandwrite_iov_task(iscsi, lun, lba,
+					   data, datalen, blocksize, wrprotect,
+					   dpo, fua, fua_nv, group_number,
+					   scsi_sync_cb, &state, iov, niov) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send CompareAndWrite command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
 iscsi_writeverify10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int bytchk, int group_number)
@@ -904,6 +1136,29 @@ iscsi_writeverify10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 	if (iscsi_writeverify10_task(iscsi, lun, lba, data, datalen, blocksize,
 			       wrprotect, dpo, bytchk, group_number,
 			       scsi_sync_cb, &state) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Writeverify10 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
+iscsi_writeverify10_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+			     unsigned char *data, uint32_t datalen, int blocksize,
+			     int wrprotect, int dpo, int bytchk, int group_number,
+			     struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_writeverify10_iov_task(iscsi, lun, lba, data, datalen, blocksize,
+					 wrprotect, dpo, bytchk, group_number,
+					 scsi_sync_cb, &state, iov, niov) == NULL) {
 		iscsi_set_error(iscsi,
 				"Failed to send Writeverify10 command");
 		return NULL;
@@ -938,6 +1193,30 @@ iscsi_writeverify12_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 }
 
 struct scsi_task *
+iscsi_writeverify12_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+			 unsigned char *data, uint32_t datalen, int blocksize,
+			 int wrprotect, int dpo, int bytchk, int group_number,
+			 struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_writeverify12_iov_task(iscsi, lun, lba,
+					 data, datalen, blocksize, wrprotect,
+					 dpo, bytchk, group_number,
+					 scsi_sync_cb, &state, iov, niov) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Writeverify12 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
 iscsi_writeverify16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		   unsigned char *data, uint32_t datalen, int blocksize,
 		   int wrprotect, int dpo, int bytchk, int group_number)
@@ -950,6 +1229,30 @@ iscsi_writeverify16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 			       data, datalen, blocksize, wrprotect, 
 			       dpo, bytchk, group_number,
 			       scsi_sync_cb, &state) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Writeverify16 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
+iscsi_writeverify16_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			     unsigned char *data, uint32_t datalen, int blocksize,
+			     int wrprotect, int dpo, int bytchk, int group_number,
+			     struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_writeverify16_iov_task(iscsi, lun, lba,
+					 data, datalen, blocksize, wrprotect,
+					 dpo, bytchk, group_number,
+					 scsi_sync_cb, &state, iov, niov) == NULL) {
 		iscsi_set_error(iscsi,
 				"Failed to send Writeverify16 command");
 		return NULL;
@@ -981,6 +1284,27 @@ iscsi_verify10_sync(struct iscsi_context *iscsi, int lun, unsigned char *data, u
 }
 
 struct scsi_task *
+iscsi_verify10_iov_sync(struct iscsi_context *iscsi, int lun, unsigned char *data, uint32_t datalen, uint32_t lba,
+			int vprotect, int dpo, int bytchk, int blocksize, struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_verify10_iov_task(iscsi, lun, data, datalen, lba, vprotect, dpo, bytchk, blocksize,
+				    scsi_sync_cb, &state, iov, niov) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Verify10 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+
+struct scsi_task *
 iscsi_verify12_sync(struct iscsi_context *iscsi, int lun, unsigned char *data, uint32_t datalen, uint32_t lba,
 		    int vprotect, int dpo, int bytchk, int blocksize)
 {
@@ -1001,6 +1325,26 @@ iscsi_verify12_sync(struct iscsi_context *iscsi, int lun, unsigned char *data, u
 }
 
 struct scsi_task *
+iscsi_verify12_iov_sync(struct iscsi_context *iscsi, int lun, unsigned char *data, uint32_t datalen, uint32_t lba,
+			int vprotect, int dpo, int bytchk, int blocksize, struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_verify12_iov_task(iscsi, lun, data, datalen, lba, vprotect, dpo, bytchk, blocksize,
+				    scsi_sync_cb, &state, iov, niov) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Verify12 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
 iscsi_verify16_sync(struct iscsi_context *iscsi, int lun, unsigned char *data, uint32_t datalen, uint64_t lba,
 		    int vprotect, int dpo, int bytchk, int blocksize)
 {
@@ -1010,6 +1354,26 @@ iscsi_verify16_sync(struct iscsi_context *iscsi, int lun, unsigned char *data, u
 
 	if (iscsi_verify16_task(iscsi, lun, data, datalen, lba, vprotect, dpo, bytchk, blocksize,
 				       scsi_sync_cb, &state) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send Verify16 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
+iscsi_verify16_iov_sync(struct iscsi_context *iscsi, int lun, unsigned char *data, uint32_t datalen, uint64_t lba,
+			int vprotect, int dpo, int bytchk, int blocksize, struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_verify16_iov_task(iscsi, lun, data, datalen, lba, vprotect, dpo, bytchk, blocksize,
+				    scsi_sync_cb, &state, iov, niov) == NULL) {
 		iscsi_set_error(iscsi,
 				"Failed to send Verify16 command");
 		return NULL;
@@ -1045,6 +1409,31 @@ iscsi_writesame10_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
 }
 
 struct scsi_task *
+iscsi_writesame10_iov_sync(struct iscsi_context *iscsi, int lun, uint32_t lba,
+			   unsigned char *data, uint32_t datalen,
+			   uint16_t num_blocks,
+			   int anchor, int unmap, int wrprotect, int group,
+			   struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_writesame10_iov_task(iscsi, lun, lba,
+				       data, datalen, num_blocks,
+				       anchor, unmap, wrprotect, group,
+				       scsi_sync_cb, &state, iov, niov) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send WRITESAME10 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
 iscsi_writesame16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 		       unsigned char *data, uint32_t datalen,
 		       uint32_t num_blocks,
@@ -1058,6 +1447,31 @@ iscsi_writesame16_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
 				   data, datalen, num_blocks,
 				   anchor, unmap, wrprotect, group,
 				   scsi_sync_cb, &state) == NULL) {
+		iscsi_set_error(iscsi,
+				"Failed to send WRITESAME16 command");
+		return NULL;
+	}
+
+	event_loop(iscsi, &state);
+
+	return state.task;
+}
+
+struct scsi_task *
+iscsi_writesame16_iov_sync(struct iscsi_context *iscsi, int lun, uint64_t lba,
+			   unsigned char *data, uint32_t datalen,
+			   uint32_t num_blocks,
+			   int anchor, int unmap, int wrprotect, int group,
+			   struct scsi_iovec *iov, int niov)
+{
+	struct iscsi_sync_state state;
+
+	memset(&state, 0, sizeof(state));
+
+	if (iscsi_writesame16_iov_task(iscsi, lun, lba,
+				       data, datalen, num_blocks,
+				       anchor, unmap, wrprotect, group,
+				       scsi_sync_cb, &state, iov, niov) == NULL) {
 		iscsi_set_error(iscsi,
 				"Failed to send WRITESAME16 command");
 		return NULL;

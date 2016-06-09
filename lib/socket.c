@@ -72,6 +72,7 @@
 #include "slist.h"
 
 static uint32_t iface_rr = 0;
+struct iscsi_transport;
 
 void
 iscsi_add_to_outqueue(struct iscsi_context *iscsi, struct iscsi_pdu *pdu)
@@ -183,11 +184,83 @@ static int set_tcp_syncnt(struct iscsi_context *iscsi)
 	return 0;
 }
 
-union socket_address {
-	struct sockaddr_in sin;
-	struct sockaddr_in6 sin6;
-	struct sockaddr sa;
-};
+static int iscsi_tcp_connect(struct iscsi_context *iscsi, union socket_address *sa, int ai_family) {
+
+	int socksize;
+
+	iscsi->fd = socket(ai_family, SOCK_STREAM, 0);
+	if (iscsi->fd == -1) {
+		iscsi_set_error(iscsi, "Failed to open iscsi socket. "
+				"Errno:%s(%d).", strerror(errno), errno);
+		return -1;
+	}
+
+	if (iscsi->old_iscsi && iscsi->fd != iscsi->old_iscsi->fd) {
+		if (dup2(iscsi->fd, iscsi->old_iscsi->fd) == -1) {
+			return -1;
+		}
+		close(iscsi->fd);
+		iscsi->fd = iscsi->old_iscsi->fd;
+	}
+
+	set_nonblocking(iscsi->fd);
+
+	iscsi_set_tcp_keepalive(iscsi, iscsi->tcp_keepidle, iscsi->tcp_keepcnt, iscsi->tcp_keepintvl);
+
+	if (iscsi->tcp_user_timeout > 0) {
+		set_tcp_user_timeout(iscsi);
+	}
+
+	if (iscsi->tcp_syncnt > 0) {
+		set_tcp_syncnt(iscsi);
+	}
+
+#if __linux
+	if (iscsi->bind_interfaces[0]) {
+		char *pchr = iscsi->bind_interfaces, *pchr2;
+		int iface_n = iface_rr++%iscsi->bind_interfaces_cnt;
+		int iface_c = 0;
+		do {
+			pchr2 = strchr(pchr,',');
+			if (iface_c == iface_n) {
+				if (pchr2) pchr2[0]=0x00;
+				break;
+			}
+			if (pchr2) {pchr=pchr2+1;}
+			iface_c++;
+		} while (pchr2);
+
+		int res = setsockopt(iscsi->fd, SOL_SOCKET, SO_BINDTODEVICE, pchr, strlen(pchr));
+		if (res < 0) {
+			ISCSI_LOG(iscsi,1,"failed to bind to interface '%s': %s",pchr,strerror(errno));
+		} else {
+			ISCSI_LOG(iscsi,3,"successfully bound to interface '%s'",pchr);
+		}
+		if (pchr2) pchr2[0]=',';
+	}
+#endif
+
+	if (set_tcp_sockopt(iscsi->fd, TCP_NODELAY, 1) != 0) {
+		ISCSI_LOG(iscsi,1,"failed to set TCP_NODELAY sockopt: %s",strerror(errno));
+	} else {
+		ISCSI_LOG(iscsi,3,"TCP_NODELAY set to 1");
+	}
+
+	socksize = sizeof(struct sockaddr_in);  // Work-around for now, need to fix it
+
+	if (connect(iscsi->fd, &sa->sa, socksize) != 0
+		&& errno != EINPROGRESS) {
+		iscsi_set_error(iscsi, "Connect failed with errno : "
+			"%s(%d)", strerror(errno), errno);
+		close(iscsi->fd);
+		iscsi->fd = -1;
+		return -1;
+	}
+
+	return 0;
+}
+
+
 
 int
 iscsi_connect_async(struct iscsi_context *iscsi, const char *portal,
@@ -251,7 +324,7 @@ iscsi_connect_async(struct iscsi_context *iscsi, const char *portal,
 		iscsi_set_error(iscsi, "Invalid target:%s  "
 			"Can not resolv into IPv4/v6.", portal);
 		return -1;
- 	}
+	}
 	iscsi_free(iscsi, addr);
 
 	memset(&sa, 0, sizeof(sa));
@@ -283,92 +356,19 @@ iscsi_connect_async(struct iscsi_context *iscsi, const char *portal,
 
 	}
 
-	iscsi->fd = socket(ai->ai_family, SOCK_STREAM, 0);
-	if (iscsi->fd == -1) {
-		freeaddrinfo(ai);
-		iscsi_set_error(iscsi, "Failed to open iscsi socket. "
-				"Errno:%s(%d).", strerror(errno), errno);
-		return -1;
-
-	}
-
-	if (iscsi->old_iscsi && iscsi->fd != iscsi->old_iscsi->fd) {
-		if (dup2(iscsi->fd, iscsi->old_iscsi->fd) == -1) {
-			return -1;
-		}
-		close(iscsi->fd);
-		iscsi->fd = iscsi->old_iscsi->fd;
-	}
-
 	iscsi->socket_status_cb  = cb;
 	iscsi->connect_data      = private_data;
 
-	set_nonblocking(iscsi->fd);
-
-	iscsi_set_tcp_keepalive(iscsi, iscsi->tcp_keepidle, iscsi->tcp_keepcnt, iscsi->tcp_keepintvl);
-
-	if (iscsi->tcp_user_timeout > 0) {
-		set_tcp_user_timeout(iscsi);
-	}
-
-	if (iscsi->tcp_syncnt > 0) {
-		set_tcp_syncnt(iscsi);
-	}
-
-#if __linux
-	if (iscsi->bind_interfaces[0]) {
-		char *pchr = iscsi->bind_interfaces, *pchr2;
-		int iface_n = iface_rr++%iscsi->bind_interfaces_cnt;
-		int iface_c = 0;
-		do {
-			pchr2 = strchr(pchr,',');
-			if (iface_c == iface_n) {
-			 if (pchr2) pchr2[0]=0x00;
-			 break;
-			}
-			if (pchr2) {pchr=pchr2+1;}
-			iface_c++;
-		} while (pchr2);
-		
-		int res = setsockopt(iscsi->fd, SOL_SOCKET, SO_BINDTODEVICE, pchr, strlen(pchr));
-		if (res < 0) {
-			ISCSI_LOG(iscsi,1,"failed to bind to interface '%s': %s",pchr,strerror(errno));
-		} else {
-			ISCSI_LOG(iscsi,3,"successfully bound to interface '%s'",pchr);
-		}
-		if (pchr2) pchr2[0]=',';
-	}
-#endif
-
-	if (set_tcp_sockopt(iscsi->fd, TCP_NODELAY, 1) != 0) {
-		ISCSI_LOG(iscsi,1,"failed to set TCP_NODELAY sockopt: %s",strerror(errno));
-	} else {
-		ISCSI_LOG(iscsi,3,"TCP_NODELAY set to 1");
-	}
-
-	if (connect(iscsi->fd, &sa.sa, socksize) != 0
-#if defined(WIN32)
-	    && WSAGetLastError() != WSAEWOULDBLOCK) {
-#else
-	    && errno != EINPROGRESS) {
-#endif
-		iscsi_set_error(iscsi, "Connect failed with errno : "
-				"%s(%d)", strerror(errno), errno);
-		close(iscsi->fd);
-		iscsi->fd = -1;
-		freeaddrinfo(ai);
+	if(iscsi->t->connect(iscsi, &sa, ai->ai_family) < 0) {
+		iscsi_set_error(iscsi, "Couldn't connect transport");
 		return -1;
 	}
-
-	freeaddrinfo(ai);
-
-	strncpy(iscsi->connected_portal,portal,MAX_STRING_SIZE);
 
 	return 0;
 }
 
-int
-iscsi_disconnect(struct iscsi_context *iscsi)
+static int
+iscsi_tcp_disconnect(struct iscsi_context *iscsi)
 {
 	if (iscsi->fd == -1) {
 		iscsi_set_error(iscsi, "Trying to disconnect "
@@ -390,8 +390,15 @@ iscsi_disconnect(struct iscsi_context *iscsi)
 	return 0;
 }
 
+
 int
-iscsi_get_fd(struct iscsi_context *iscsi)
+iscsi_disconnect(struct iscsi_context *iscsi)
+{
+        return iscsi->t->disconnect(iscsi);
+}
+
+int
+iscsi_tcp_get_fd(struct iscsi_context *iscsi)
 {
 	if (iscsi->old_iscsi) {
 		return iscsi->old_iscsi->fd;
@@ -400,7 +407,13 @@ iscsi_get_fd(struct iscsi_context *iscsi)
 }
 
 int
-iscsi_which_events(struct iscsi_context *iscsi)
+iscsi_get_fd(struct iscsi_context *iscsi)
+{
+	return iscsi->t->get_fd(iscsi);
+}
+
+int
+iscsi_tcp_which_events(struct iscsi_context *iscsi)
 {
 	int events = iscsi->is_connected ? POLLIN : POLLOUT;
 
@@ -418,6 +431,12 @@ iscsi_which_events(struct iscsi_context *iscsi)
 		events |= POLLOUT;
 	}
 	return events;
+}
+
+int
+iscsi_which_events(struct iscsi_context *iscsi)
+{
+	return iscsi->t->which_events(iscsi);
 }
 
 int
@@ -549,6 +568,7 @@ iscsi_read_from_socket(struct iscsi_context *iscsi)
 
 	if (iscsi->incoming == NULL) {
 		iscsi->incoming = iscsi_szmalloc(iscsi, sizeof(struct iscsi_in_pdu));
+		iscsi->incoming->hdr = iscsi_szmalloc(iscsi, ISCSI_RAW_HEADER_SIZE + ISCSI_DIGEST_SIZE);
 		if (iscsi->incoming == NULL) {
 			iscsi_set_error(iscsi, "Out-of-memory: failed to malloc iscsi_in_pdu");
 			return -1;
@@ -789,14 +809,14 @@ iscsi_write_to_socket(struct iscsi_context *iscsi)
 			iscsi->is_corked = 1;
 		}
 		if (pdu->flags & ISCSI_PDU_DELETE_WHEN_SENT) {
-			iscsi_free_pdu(iscsi, pdu);
+			iscsi->t->free_pdu(iscsi, pdu);
 		}
 		iscsi->outqueue_current = NULL;
 	}
 	return 0;
 }
 
-static int
+int
 iscsi_service_reconnect_if_loggedin(struct iscsi_context *iscsi)
 {
 	if (iscsi->is_loggedin) {
@@ -816,7 +836,7 @@ iscsi_service_reconnect_if_loggedin(struct iscsi_context *iscsi)
 }
 
 int
-iscsi_service(struct iscsi_context *iscsi, int revents)
+iscsi_tcp_service(struct iscsi_context *iscsi, int revents)
 {
 	if (iscsi->fd < 0) {
 		return 0;
@@ -919,7 +939,13 @@ iscsi_service(struct iscsi_context *iscsi, int revents)
 }
 
 int
-iscsi_queue_pdu(struct iscsi_context *iscsi, struct iscsi_pdu *pdu)
+iscsi_service(struct iscsi_context *iscsi, int revents)
+{
+	return iscsi->t->service(iscsi, revents);
+}
+
+static int iscsi_tcp_queue_pdu(struct iscsi_context *iscsi,
+                               struct iscsi_pdu *pdu)
 {
 	if (pdu == NULL) {
 		iscsi_set_error(iscsi, "trying to queue NULL pdu");
@@ -951,6 +977,7 @@ iscsi_queue_pdu(struct iscsi_context *iscsi, struct iscsi_pdu *pdu)
 void
 iscsi_free_iscsi_in_pdu(struct iscsi_context *iscsi, struct iscsi_in_pdu *in)
 {
+	iscsi_free(iscsi, in->hdr);
 	iscsi_free(iscsi, in->data);
 	in->data=NULL;
 	iscsi_sfree(iscsi, in);
@@ -1049,4 +1076,18 @@ void iscsi_set_bind_interfaces(struct iscsi_context *iscsi, char * interfaces _U
 #else
 	ISCSI_LOG(iscsi,1,"binding to an interface is not supported on your OS");
 #endif
+}
+
+void iscsi_init_tcp_transport(struct iscsi_context *iscsi)
+{
+	iscsi->t->connect = iscsi_tcp_connect;
+	iscsi->t->queue_pdu = iscsi_tcp_queue_pdu;
+	iscsi->t->new_pdu = iscsi_tcp_new_pdu;
+	iscsi->t->disconnect = iscsi_tcp_disconnect;
+	iscsi->t->free_pdu = iscsi_tcp_free_pdu;
+	iscsi->t->service = iscsi_tcp_service;
+	iscsi->t->get_fd = iscsi_tcp_get_fd;
+	iscsi->t->which_events = iscsi_tcp_which_events;
+
+	return;
 }
