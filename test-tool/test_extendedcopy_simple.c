@@ -51,7 +51,7 @@ void test_extendedcopy_simple(void) {
 	xcopybuf = data.data;
 	memset(xcopybuf, 0, data.size);
 
-	/* Initialize target descriptor list with one target descriptor */
+	/* Initialize target descriptor list with one target Descriptor */
 	offset += populate_tgt_desc(xcopybuf + offset, IDENT_DESCR_TGT_DESCR,
 			LU_ID_TYPE_LUN, 0, 0, 0, 0, sd);
 	offset += populate_tgt_desc(xcopybuf + offset, IDENT_DESCR_TGT_DESCR,
